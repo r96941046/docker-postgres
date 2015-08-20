@@ -64,9 +64,27 @@ fi
 # create DB_NAME
 if [[ -n ${DB_NAME} ]]; then
 
+    # create utf-8 encoded template1 from which we later create db from
+    echo "Create utf-8 encoded template1..."
+
+    locale-gen "en_US.UTF-8"
+
+    echo "UPDATE pg_database SET datistemplate=false WHERE datname='template1';" | \
+        sudo -Hu ${PG_USER} ${PG_BINDIR}/postgres --single \
+            -D ${PG_DATADIR} -c config_file=${PG_CONFDIR}/postgresql.conf >/dev/null
+    echo "DROP DATABASE Template1;" | \
+        sudo -Hu ${PG_USER} ${PG_BINDIR}/postgres --single \
+            -D ${PG_DATADIR} -c config_file=${PG_CONFDIR}/postgresql.conf >/dev/null
+    echo "CREATE DATABASE template1 WITH owner=postgres encoding='UTF-8' lc_collate='en_US.UTF-8' lc_ctype='en_US.UTF-8' template template0;" | \
+        sudo -Hu ${PG_USER} ${PG_BINDIR}/postgres --single \
+            -D ${PG_DATADIR} -c config_file=${PG_CONFDIR}/postgresql.conf >/dev/null
+    echo "UPDATE pg_database SET datistemplate=true WHERE datname='template1';" | \
+        sudo -Hu ${PG_USER} ${PG_BINDIR}/postgres --single \
+            -D ${PG_DATADIR} -c config_file=${PG_CONFDIR}/postgresql.conf >/dev/null
+
     for db in $(awk -F',' '{for (i = 1 ; i <= NF ; i++) print $i}' <<< "${DB_NAME}"); do
         echo "Creating database \"${db}\"..."
-        echo "CREATE DATABASE ${db};" | \
+        echo "CREATE DATABASE ${db} OWNER ${DB_USER} ENCODING 'UTF8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8' TEMPLATE template1;" | \
             sudo -Hu ${PG_USER} ${PG_BINDIR}/postgres --single \
                 -D ${PG_DATADIR} -c config_file=${PG_CONFDIR}/postgresql.conf >/dev/null
 
